@@ -1,6 +1,6 @@
 <?php
 
-    namespace IdnoPlugins\Facebook {
+    namespace IdnoPlugins\Diaspora {
 
         class Main extends \Idno\Common\Plugin
         {
