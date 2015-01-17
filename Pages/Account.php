@@ -4,7 +4,7 @@
      * Diaspora pages
      */
 
-    namespace IdnoPlugins\Diaspora\Pages {
+    namespace IdnoPlugins\KnownDiaspora\Pages {
 
         /**
          * Default class to serve Diaspora-related account settings
@@ -14,23 +14,36 @@
 
             function getContent()
             {
-                $this->gatekeeper(); // Logged-in users only
-                if ($diaspora = \Idno\Core\site()->plugins()->get('Diaspora')) {
-                    $login_url = $diaspora->getAuthURL();
+                if(isset($_GET['remove'])) {
+                    \Idno\Core\site()->config->config['diaspora'] = [
+                        'diaspora_username' => '',
+                        'diaspora_password' => '',
+                        'diaspora_pod' => ''
+                        ];
+                    \Idno\Core\site()->config()->save();
+                    \Idno\Core\site()->session()->addMessage('Your Diaspora credentials were removed.');
+                    $this->forward(\Idno\Core\site()->config()->getDisplayURL() . 'account/diaspora/');
                 }
+                $this->gatekeeper(); // Logged-in users only
                 $t = \Idno\Core\site()->template();
-                $body = $t->__(array('login_url' => $login_url))->draw('account/diaspora');
+                $body = $t->__(array())->draw('account/diaspora');
                 $t->__(array('title' => 'Diaspora', 'body' => $body))->drawPage();
             }
 
             function postContent() {
                 $this->gatekeeper(); // Logged-in users only
-                if (($this->getInput('remove'))) {
-                    $user = \Idno\Core\site()->session()->currentUser();
-                    $user->diaspora = array();
-                    $user->save();
-                    \Idno\Core\site()->session()->addMessage('Your Diaspora settings have been removed from your account.');
+                $pod = $this->getInput('pod');
+                $username = $this->getInput('user');
+                $password = $this->getInput('pass');
+                \Idno\Core\site()->config->config['diaspora'] = [
+                    'diaspora_username' => $username,
+                    'diaspora_pod' => $pod
+                    ];
+                if (empty(\Idno\Core\site()->config->config['diaspora']['diaspora_password']) || !empty($password) ) {
+                    \Idno\Core\site()->config->config['diaspora']['diaspora_password'] = $password;
                 }
+                \Idno\Core\site()->config()->save();
+                \Idno\Core\site()->session()->addMessage('Your Diaspora credentials were saved.');
                 $this->forward(\Idno\Core\site()->config()->getDisplayURL() . 'account/diaspora/');
             }
 

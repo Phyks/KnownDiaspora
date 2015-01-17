@@ -1,6 +1,6 @@
 <?php
 
-    namespace IdnoPlugins\Diaspora {
+    namespace IdnoPlugins\KnownDiaspora {
 
         class Main extends \Idno\Common\Plugin
         {
@@ -9,31 +9,23 @@
 
             function registerPages()
             {
-                // Deauth URL
-                \Idno\Core\site()->addPageHandler('facebook/deauth', '\IdnoPlugins\Facebook\Pages\Deauth');
-                // Register the callback URL
-                \Idno\Core\site()->addPageHandler('facebook/callback', '\IdnoPlugins\Facebook\Pages\Callback');
-                // Register admin settings
-                \Idno\Core\site()->addPageHandler('admin/facebook', '\IdnoPlugins\Facebook\Pages\Admin');
                 // Register settings page
-                \Idno\Core\site()->addPageHandler('account/facebook', '\IdnoPlugins\Facebook\Pages\Account');
+                \Idno\Core\site()->addPageHandler('account/diaspora', '\IdnoPlugins\KnownDiaspora\Pages\Account');
 
                 /** Template extensions */
-                // Add menu items to account & administration screens
-                \Idno\Core\site()->template()->extendTemplate('admin/menu/items', 'admin/facebook/menu');
-                \Idno\Core\site()->template()->extendTemplate('account/menu/items', 'account/facebook/menu');
-                \Idno\Core\site()->template()->extendTemplate('onboarding/connect/networks', 'onboarding/connect/facebook');
+                // Add menu items to account screens
+                \Idno\Core\site()->template()->extendTemplate('account/menu/items', 'account/diaspora/menu');
             }
 
-            function registerEventHooks()
-            {
+            /*function registerEventHooks()
+            { // TODO
 
-                \Idno\Core\site()->syndication()->registerService('facebook', function () {
-                    return $this->hasFacebook();
+                \Idno\Core\site()->syndication()->registerService('diaspora', function () {
+                    return $this->hasDiaspora();
                 }, array('note', 'article', 'image', 'media','rsvp', 'bookmark'));
 
-                if ($this->hasFacebook()) {
-                    if (is_array(\Idno\Core\site()->session()->currentUser()->facebook) && !array_key_exists('access_token', \Idno\Core\site()->session()->currentUser()->facebook)) {
+                if ($this->hasDiaspora()) {
+                    if (is_array(\Idno\Core\site()->session()->currentUser()->diaspora) && !array_key_exists('access_token', \Idno\Core\site()->session()->currentUser()->facebook)) {
                         foreach(\Idno\Core\site()->session()->currentUser()->facebook as $username => $details) {
                             \Idno\Core\site()->syndication()->registerServiceAccount('facebook', $username, $details['name']);
                         }
@@ -180,66 +172,7 @@
                         }
                     }
                 });
-            }
-
-            /**
-             * Retrieve the URL to authenticate with Facebook
-             * @return string
-             */
-            function getAuthURL()
-            {
-                $facebook = $this;
-                if ($facebookAPI = $facebook->connect()) {
-                    return $facebookAPI->getLoginUrl();
-                }
-                return '';
-            }
-
-            /**
-             * Connect to Facebook
-             * @return bool|FacebookAPI
-             */
-            function connect($account_id = '')
-            {
-                if (!empty(\Idno\Core\site()->config()->facebook)) {
-
-                    require_once(dirname(__FILE__) . '/external/facebook-sdk/autoload.php');
-                    \Facebook\FacebookSession::setDefaultApplication(
-                        \Idno\Core\site()->config()->facebook['appId'],
-                        \Idno\Core\site()->config()->facebook['secret']
-                    );
-
-                    $facebookAPI = new FacebookAPI();
-                    if (!empty($account_id)) {
-                        if (!empty(\Idno\Core\site()->session()->currentUser()->facebook[$account_id])) {
-                            $facebookAPI->setAccessToken(\Idno\Core\site()->session()->currentUser()->facebook[$account_id]['access_token']);
-                            $this->endpoint = $account_id;
-                            return $facebookAPI;
-                        }
-                    } else {
-                        if (!empty(\Idno\Core\site()->session()->currentUser()->facebook['access_token'])) {
-                            $facebookAPI->setAccessToken(\Idno\Core\site()->session()->currentUser()->facebook['access_token']);
-                        }
-                        return $facebookAPI;    // This needs to return even if we haven't set the user token yet, for the auth callback
-                    }
-
-                }
-
-                return false;
-            }
-
-            /**
-             * Can the current user use Twitter?
-             * @return bool
-             */
-            function hasFacebook()
-            {
-                if (!\Idno\Core\site()->session()->currentUser()) {
-                    return false;
-                }
-                return \Idno\Core\site()->session()->currentUser()->facebook;
-            }
-
+            }*/
         }
 
     }
