@@ -25,7 +25,7 @@
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
                 curl_setopt($ch, CURLOPT_COOKIEFILE, $this->tmp_cookie_file);
                 curl_setopt($ch, CURLOPT_COOKIEJAR, $this->tmp_cookie_file);
-                $http_status = curl_getinfo($http, CURLINFO_HTTP_CODE);
+                $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 $content = curl_exec($ch);
                 curl_close($ch);
 
@@ -33,6 +33,7 @@
             }
 
             public function __construct($pod, $username, $password) {
+                $this->tmp_cookie_file = tempnam(sys_get_temp_dir(), 'cookiejar');
                 $this->pod = $pod;
                 $data = array(
                     'user[username]' => $username,
@@ -41,9 +42,8 @@
                 );
                 $response = $this->_curl($this->pod."/users/sign_in", "post", $data);
                 if ($response['status_code'] != 302) {
-                    throw new Exception("Invalid status code: ".$response['status_code']);
+                    throw new \Exception("Invalid status code: ".$response['status_code']);
                 }
-                $this->tmp_cookie_file = tempnam(sys_get_temp_dir(), 'cookiejar');
             }
 
             public function __destruct() {
@@ -68,8 +68,10 @@
                     'x-csrf-token' => $this->_fetch_token()
                 );
                 $response = $this->_curl($this->pod."/status_messages", "post", $data, $headers);
+                var_dump($response);
+                exit();
                 if ($response['status_code'] != 201) {
-                    throw new Exception("Invalid status code: ".$response['status_code']);
+                    throw new \Exception("Invalid status code: ".$response['status_code']);
                 }
             }
 
