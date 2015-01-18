@@ -32,7 +32,6 @@
                     $eventdata = $event->data();
                     $object = $eventdata['object'];
                     if ($this->hasDiaspora()) {
-                        $object      = $eventdata['object'];
                         $diasporaAPI  = new DiasporaAPI(\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_pod']);
                         $diasporaAPI->login(\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_username'], \Idno\Core\site()->session()->currentUser()->diaspora['diaspora_password']);
                         if (!empty($diasporaAPI)) {
@@ -45,11 +44,7 @@
 
                             if (!empty($message) && substr($message, 0, 1) != '@') {
                                 try {
-                                    $result = $diasporaAPI->post($message, 'KnownDiaspora');
-                                    if (!empty($result['id'])) {
-                                        $result['id'] = str_replace('_', '/posts/', $result['id']);
-                                        $object->save();
-                                    }
+                                    $diasporaAPI->post($message, 'KnownDiaspora');
                                 } catch (\Exception $e) {
                                     error_log('There was a problem posting to Diaspora: ' . $e->getMessage());
                                     \Idno\Core\site()->session()->addMessage('There was a problem posting to Diaspora: ' . $e->getMessage());
@@ -63,28 +58,16 @@
                 \Idno\Core\site()->addEventHook('post/note/diaspora', $notes_function);
                 \Idno\Core\site()->addEventHook('post/bookmark/diaspora', $notes_function);
 
-                // TODO
                 $article_function = function (\Idno\Core\Event $event) {
                     $eventdata = $event->data();
                     $object = $eventdata['object'];
-                    if ($this->hasFacebook()) {
-                        if (!empty($eventdata['syndication_account'])) {
-                            $facebookAPI  = $this->connect($eventdata['syndication_account']);
-                        } else {
-                            $facebookAPI  = $this->connect();
-                        }
-                        if (!empty($facebookAPI)) {
-                            $result = $facebookAPI->api('/'.$this->endpoint.'/feed', 'POST',
-                                array(
-                                    'link'    => $object->getURL(),
-                                    'message' => $object->getTitle(),
-                                    'actions' => json_encode([['name' => 'See Original', 'link' => $object->getURL()]]),
-                                ));
-                            if (!empty($result['id'])) {
-                                $result['id'] = str_replace('_', '/posts/', $result['id']);
-                                $object->setPosseLink('facebook', 'https://facebook.com/' . $result['id']);
-                                $object->save();
-                            }
+                    if ($this->hasDiaspora()) {
+                        $diasporaAPI  = new DiasporaAPI(\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_pod']);
+                        $diasporaAPI->login(\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_username'], \Idno\Core\site()->session()->currentUser()->diaspora['diaspora_password']);
+                        if (!empty($diasporaAPI)) {
+                            $message = $object->getTitle();
+                            $message .= "\n\n(<a href=\"http://" . $object->getShortURL(true, false) . "\">" . $object->getShortURL(true, false) . "</a>)";
+                            $diasporaAPI->post($message, 'KnownDiaspora');
                         }
                     }
                 };
