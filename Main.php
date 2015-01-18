@@ -67,17 +67,22 @@
                         if (!empty($diasporaAPI)) {
                             $message = $object->getTitle();
                             $message .= "\n\n(<a href=\"http://" . $object->getShortURL(true, false) . "\">" . $object->getShortURL(true, false) . "</a>)";
-                            $diasporaAPI->post($message, 'KnownDiaspora');
+                            try {
+                                $diasporaAPI->post($message, 'KnownDiaspora');
+                            } catch (\Exception $e) {
+                                error_log('There was a problem posting to Diaspora: ' . $e->getMessage());
+                                \Idno\Core\site()->session()->addMessage('There was a problem posting to Diaspora: ' . $e->getMessage());
+                            }
                         }
                     }
                 };
 
-                // Push "articles" and "rsvps" to Facebook
+                // Push "articles" and "rsvps" to Diaspora
                 \Idno\Core\site()->addEventHook('post/rsvp/diaspora', $article_function);
                 \Idno\Core\site()->addEventHook('post/article/diaspora', $article_function);
 
                 // TODO
-                // Push "media" to Facebook
+                // Push "media" to Diaspora
                 \Idno\Core\site()->addEventHook('post/media/diaspora', function (\Idno\Core\Event $event) {
                     $eventdata = $event->data();
                     $object = $eventdata['object'];
@@ -103,40 +108,22 @@
                     }
                 });
 
-                // TODO
-                // Push "images" to Facebook
+                // Push "images" to Diaspora
                 \Idno\Core\site()->addEventHook('post/image/diaspora', function (\Idno\Core\Event $event) {
                     $eventdata = $event->data();
                     $object = $eventdata['object'];
                     if ($attachments = $object->getAttachments()) {
                         foreach ($attachments as $attachment) {
-                            if ($this->hasFacebook()) {
-                                if (!empty($eventdata['syndication_account'])) {
-                                    $facebookAPI  = $this->connect($eventdata['syndication_account']);
-                                } else {
-                                    $facebookAPI  = $this->connect();
-                                }
-                                if (!empty($facebookAPI)) {
-                                    $message = strip_tags($object->getTitle()) . "\n\n" . strip_tags($object->getDescription());
+                            if ($this->hasDiaspora()) {
+                                $diasporaAPI  = new DiasporaAPI(\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_pod']);
+                                $diasporaAPI->login(\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_username'], \Idno\Core\site()->session()->currentUser()->diaspora['diaspora_password']);
+                                if (!empty($diasporaAPI)) {
+                                    $message = strip_tags($object->getTitle()) . "\n\n<img src=\"".$attachment['url']."\"/>\n\n" . strip_tags($object->getDescription());
                                     $message .= "\n\nOriginal: " . $object->getURL();
                                     try {
-                                        //$facebookAPI->setFileUploadSupport(true);
-                                        $response = $facebookAPI->api(
-                                            '/'.$this->endpoint.'/photos/',
-                                            'post',
-                                            array(
-                                                'message' => $message,
-                                                'url'     => $attachment['url'],
-                                                'actions' => json_encode([['name' => 'See Original', 'link' => $object->getURL()]]),
-                                            )
-                                        );
-                                        if (!empty($response['id'])) {
-                                            $result['id'] = str_replace('_', '/photos/', $response['id']);
-                                            $object->setPosseLink('facebook', 'https://facebook.com/' . $response['id']);
-                                            $object->save();
-                                        }
-                                    } catch (\FacebookApiException $e) {
-                                        error_log('Could not post image to Facebook: ' . $e->getMessage());
+                                        $diasporaAPI->post($message, 'KnownDiaspora');
+                                    } catch (\Exception $e) {
+                                        error_log('Could not post image to Diaspora: ' . $e->getMessage());
                                     }
                                 }
                             }
