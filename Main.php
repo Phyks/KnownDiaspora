@@ -17,67 +17,53 @@
                 \Idno\Core\site()->template()->extendTemplate('account/menu/items', 'account/diaspora/menu');
             }
 
-            /*function registerEventHooks()
-            { // TODO
+            function registerEventHooks()
+            {
 
                 \Idno\Core\site()->syndication()->registerService('diaspora', function () {
                     return $this->hasDiaspora();
                 }, array('note', 'article', 'image', 'media','rsvp', 'bookmark'));
 
                 if ($this->hasDiaspora()) {
-                    if (is_array(\Idno\Core\site()->session()->currentUser()->diaspora) && !array_key_exists('access_token', \Idno\Core\site()->session()->currentUser()->facebook)) {
-                        foreach(\Idno\Core\site()->session()->currentUser()->facebook as $username => $details) {
-                            \Idno\Core\site()->syndication()->registerServiceAccount('facebook', $username, $details['name']);
-                        }
-                    }
+                    \Idno\Core\site()->syndication()->registerServiceAccount('diaspora', \Idno\Core\site()->session()->currentUser()->diaspora['diaspora_username'], 'Diaspora ('.\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_username'].')');
                 }
 
                 $notes_function = function (\Idno\Core\Event $event) {
                     $eventdata = $event->data();
                     $object = $eventdata['object'];
-                    if ($this->hasFacebook()) {
+                    if ($this->hasDiaspora()) {
                         $object      = $eventdata['object'];
-                        if (!empty($eventdata['syndication_account'])) {
-                            $facebookAPI  = $this->connect($eventdata['syndication_account']);
-                        } else {
-                            $facebookAPI  = $this->connect();
-                        }
-                        if (!empty($facebookAPI)) {
+                        $diasporaAPI  = new DiasporaAPI(\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_pod']);
+                        $diasporaAPI->login(\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_username'], \Idno\Core\site()->session()->currentUser()->diaspora['diaspora_password']);
+                        if (!empty($diasporaAPI)) {
                             $message = preg_replace('/<[^\>]*>/', '', $object->getDescription()); //strip_tags($object->getDescription());
 
                             // Obey the IndieWeb reference setting
                             if (!substr_count($message, \Idno\Core\site()->config()->host) && \Idno\Core\site()->config()->indieweb_reference) {
-                                $message .= "\n\n(" . $object->getShortURL(true, false) . ")";
+                                $message .= "\n\n(<a href=\"http://" . $object->getShortURL(true, false) . "\">" . $object->getShortURL(true, false) . "</a>)";
                             }
 
                             if (!empty($message) && substr($message, 0, 1) != '@') {
-                                $params = array(
-                                    'message' => $message,
-                                    'actions' => json_encode([['name' => 'See Original', 'link' => $object->getURL()]]),
-                                );
-                                if (preg_match('/(?<!=)(?<!["\'])((ht|f)tps?:\/\/[^\s\r\n\t<>"\'\(\)]+)/i', $message, $matches)) {
-                                    $params['link'] = $matches[0]; // Set the first discovered link as the match
-                                }
                                 try {
-                                    $result = $facebookAPI->api('/'.$this->endpoint.'/feed', 'POST', $params);
+                                    $result = $diasporaAPI->post($message, 'KnownDiaspora');
                                     if (!empty($result['id'])) {
                                         $result['id'] = str_replace('_', '/posts/', $result['id']);
-                                        $object->setPosseLink('facebook', 'https://facebook.com/' . $result['id']);
                                         $object->save();
                                     }
                                 } catch (\Exception $e) {
-                                    error_log('There was a problem posting to Facebook: ' . $e->getMessage());
-                                    \Idno\Core\site()->session()->addMessage('There was a problem posting to Facebook: ' . $e->getMessage());
+                                    error_log('There was a problem posting to Diaspora: ' . $e->getMessage());
+                                    \Idno\Core\site()->session()->addMessage('There was a problem posting to Diaspora: ' . $e->getMessage());
                                 }
                             }
                         }
                     }
                 };
 
-                // Push "notes" to Facebook
-                \Idno\Core\site()->addEventHook('post/note/facebook', $notes_function);
-                \Idno\Core\site()->addEventHook('post/bookmark/facebook', $notes_function);
+                // Push "notes" to Diaspora
+                \Idno\Core\site()->addEventHook('post/note/diaspora', $notes_function);
+                \Idno\Core\site()->addEventHook('post/bookmark/diaspora', $notes_function);
 
+                // TODO
                 $article_function = function (\Idno\Core\Event $event) {
                     $eventdata = $event->data();
                     $object = $eventdata['object'];
@@ -104,11 +90,12 @@
                 };
 
                 // Push "articles" and "rsvps" to Facebook
-                \Idno\Core\site()->addEventHook('post/rsvp/facebook', $article_function);
-                \Idno\Core\site()->addEventHook('post/article/facebook', $article_function);
+                \Idno\Core\site()->addEventHook('post/rsvp/diaspora', $article_function);
+                \Idno\Core\site()->addEventHook('post/article/diaspora', $article_function);
 
+                // TODO
                 // Push "media" to Facebook
-                \Idno\Core\site()->addEventHook('post/media/facebook', function (\Idno\Core\Event $event) {
+                \Idno\Core\site()->addEventHook('post/media/diaspora', function (\Idno\Core\Event $event) {
                     $eventdata = $event->data();
                     $object = $eventdata['object'];
                     if ($this->hasFacebook()) {
@@ -133,8 +120,9 @@
                     }
                 });
 
+                // TODO
                 // Push "images" to Facebook
-                \Idno\Core\site()->addEventHook('post/image/facebook', function (\Idno\Core\Event $event) {
+                \Idno\Core\site()->addEventHook('post/image/diaspora', function (\Idno\Core\Event $event) {
                     $eventdata = $event->data();
                     $object = $eventdata['object'];
                     if ($attachments = $object->getAttachments()) {
@@ -172,7 +160,14 @@
                         }
                     }
                 });
-            }*/
+            }
+
+            /**
+             * Check if Diaspora plugin is enabled.
+             */
+            function hasDiaspora() {
+                return !empty(\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_username']) && !empty(\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_pod']) && !empty(\Idno\Core\site()->session()->currentUser()->diaspora['diaspora_password']);
+            }
         }
 
     }

@@ -15,11 +15,7 @@
             function getContent()
             {
                 if(isset($_GET['remove'])) {
-                    \Idno\Core\site()->config->config['diaspora'] = [
-                        'diaspora_username' => '',
-                        'diaspora_password' => '',
-                        'diaspora_pod' => ''
-                        ];
+                    unset(\Idno\Core\site()->session()->currentUser()->diaspora);
                     \Idno\Core\site()->config()->save();
                     \Idno\Core\site()->session()->addMessage('Your Diaspora credentials were removed.');
                     $this->forward(\Idno\Core\site()->config()->getDisplayURL() . 'account/diaspora/');
@@ -35,14 +31,18 @@
                 $pod = $this->getInput('pod');
                 $username = $this->getInput('user');
                 $password = $this->getInput('pass');
-                \Idno\Core\site()->config->config['diaspora'] = [
+                $user = \Idno\Core\site()->session()->currentUser();
+                $user->diaspora = [
                     'diaspora_username' => $username,
                     'diaspora_pod' => $pod
                     ];
-                if (empty(\Idno\Core\site()->config->config['diaspora']['diaspora_password']) || !empty($password) ) {
-                    \Idno\Core\site()->config->config['diaspora']['diaspora_password'] = $password;
+                if (empty($user->diaspora['diaspora_password']) || !empty($password) ) {
+                    $user->diaspora['diaspora_password'] = $password;
                 }
-                \Idno\Core\site()->config()->save();
+                else {
+                    $user->diaspora['diaspora_password'] = $user->diaspora['diaspora_password'];
+                }
+                $user->save();
                 \Idno\Core\site()->session()->addMessage('Your Diaspora credentials were saved.');
                 $this->forward(\Idno\Core\site()->config()->getDisplayURL() . 'account/diaspora/');
             }
